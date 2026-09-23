@@ -13,145 +13,116 @@ Item {
   implicitWidth: iconSize
   implicitHeight: iconSize
 
-  // Scale factor based on 16px reference
-  readonly property real s: iconSize / 16.0
-  readonly property real strokeW: Math.max(1.2, 1.4 * s)
-  readonly property real dotR: Math.max(1.2, 1.5 * s)
+  // 24x24 reference grid (official Tailscale mark)
+  // 3x3 grid: dots are 6 units diameter (radius 3), 3 units gap
+  readonly property real s: iconSize / 24.0
+  readonly property real d: 6.0 * s
+  readonly property real r: 3.0 * s
+  readonly property real borderWidth: Math.max(1.0, 1.2 * s)
 
   opacity: root.connected ? 1.0 : 0.45
 
-  // 1. Omarchy Geometric Maze Corner Brackets
-  // Top-Left Omarchy Bracket
+  // --- Solid Cross Nodes (Active Connected Mesh) ---
+  // Center
   Rectangle {
-    x: 1 * root.s
-    y: 1 * root.s
-    width: 6 * root.s
-    height: root.strokeW
-    color: root.color
-  }
-  Rectangle {
-    x: 1 * root.s
-    y: 1 * root.s
-    width: root.strokeW
-    height: 6 * root.s
+    x: 9.0 * root.s
+    y: 9.0 * root.s
+    width: root.d
+    height: root.d
+    radius: root.r
     color: root.color
   }
 
-  // Top-Right Omarchy Accent L
+  // Top
   Rectangle {
-    x: 10 * root.s
-    y: 1 * root.s
-    width: 5 * root.s
-    height: root.strokeW
-    color: root.color
-  }
-  Rectangle {
-    x: 15 * root.s - root.strokeW
-    y: 1 * root.s
-    width: root.strokeW
-    height: 5 * root.s
+    x: 9.0 * root.s
+    y: 0.0 * root.s
+    width: root.d
+    height: root.d
+    radius: root.r
     color: root.color
   }
 
-  // Bottom-Right Omarchy Bracket
+  // Bottom
   Rectangle {
-    x: 9 * root.s
-    y: 15 * root.s - root.strokeW
-    width: 6 * root.s
-    height: root.strokeW
-    color: root.color
-  }
-  Rectangle {
-    x: 15 * root.s - root.strokeW
-    y: 9 * root.s
-    width: root.strokeW
-    height: 6 * root.s
+    x: 9.0 * root.s
+    y: 18.0 * root.s
+    width: root.d
+    height: root.d
+    radius: root.r
     color: root.color
   }
 
-  // Bottom-Left Omarchy Accent L
+  // Left
   Rectangle {
-    x: 1 * root.s
-    y: 15 * root.s - root.strokeW
-    width: 5 * root.s
-    height: root.strokeW
-    color: root.color
-  }
-  Rectangle {
-    x: 1 * root.s
-    y: 10 * root.s
-    width: root.strokeW
-    height: 5 * root.s
+    x: 0.0 * root.s
+    y: 9.0 * root.s
+    width: root.d
+    height: root.d
+    radius: root.r
     color: root.color
   }
 
-  // 2. Tailscale Mesh Network (Center Cross Nodes)
-  // Connecting Lines
+  // Right
   Rectangle {
-    x: 4.5 * root.s
-    y: 8 * root.s - (root.strokeW / 2)
-    width: 7 * root.s
-    height: root.strokeW
-    color: root.color
-    opacity: 0.8
-  }
-  Rectangle {
-    x: 8 * root.s - (root.strokeW / 2)
-    y: 4.5 * root.s
-    width: root.strokeW
-    height: 7 * root.s
-    color: root.color
-    opacity: 0.8
-  }
-
-  // Mesh Dots
-  // Center Dot
-  Rectangle {
-    x: 8 * root.s - root.dotR
-    y: 8 * root.s - root.dotR
-    width: root.dotR * 2
-    height: root.dotR * 2
-    radius: root.dotR
+    x: 18.0 * root.s
+    y: 9.0 * root.s
+    width: root.d
+    height: root.d
+    radius: root.r
     color: root.color
   }
 
-  // Top Dot
+  // --- Corner Nodes (Official Tailscale Rings) ---
+  // Top-Left
   Rectangle {
-    x: 8 * root.s - (root.dotR * 0.9)
-    y: 4.5 * root.s - (root.dotR * 0.9)
-    width: root.dotR * 1.8
-    height: root.dotR * 1.8
-    radius: root.dotR * 0.9
-    color: root.color
+    x: 0.0 * root.s
+    y: 0.0 * root.s
+    width: root.d
+    height: root.d
+    radius: root.r
+    color: "transparent"
+    border.color: root.color
+    border.width: root.borderWidth
+    opacity: 0.55
   }
 
-  // Bottom Dot
+  // Top-Right
   Rectangle {
-    x: 8 * root.s - (root.dotR * 0.9)
-    y: 11.5 * root.s - (root.dotR * 0.9)
-    width: root.dotR * 1.8
-    height: root.dotR * 1.8
-    radius: root.dotR * 0.9
-    color: root.color
+    x: 18.0 * root.s
+    y: 0.0 * root.s
+    width: root.d
+    height: root.d
+    radius: root.r
+    color: "transparent"
+    border.color: root.color
+    border.width: root.borderWidth
+    opacity: 0.55
   }
 
-  // Left Dot
+  // Bottom-Left
   Rectangle {
-    x: 4.5 * root.s - (root.dotR * 0.9)
-    y: 8 * root.s - (root.dotR * 0.9)
-    width: root.dotR * 1.8
-    height: root.dotR * 1.8
-    radius: root.dotR * 0.9
-    color: root.color
+    x: 0.0 * root.s
+    y: 18.0 * root.s
+    width: root.d
+    height: root.d
+    radius: root.r
+    color: "transparent"
+    border.color: root.color
+    border.width: root.borderWidth
+    opacity: 0.55
   }
 
-  // Right Dot
+  // Bottom-Right
   Rectangle {
-    x: 11.5 * root.s - (root.dotR * 0.9)
-    y: 8 * root.s - (root.dotR * 0.9)
-    width: root.dotR * 1.8
-    height: root.dotR * 1.8
-    radius: root.dotR * 0.9
-    color: root.color
+    x: 18.0 * root.s
+    y: 18.0 * root.s
+    width: root.d
+    height: root.d
+    radius: root.r
+    color: "transparent"
+    border.color: root.color
+    border.width: root.borderWidth
+    opacity: 0.55
   }
 }
