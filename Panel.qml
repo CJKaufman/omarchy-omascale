@@ -235,23 +235,44 @@ Panel {
     active: root.opened
     activeColor: root.accent
     useActiveColor: true
-    labelVisible: true
-    fontSize: Style.font.body
+    labelVisible: false
+    hasVisualContent: true
+    fixedWidth: barContentRow.implicitWidth + Style.space(16)
 
-    text: {
-      var parts = []
-      parts.push(root.glyphTailscale)
-      if (root.connected) {
-        if (root.isRoutingExit) {
-          parts.push(root.glyphExitNode + " " + (root.activeExitName || "Exit"))
-        }
-        if (root.showIpOnBar && root.selfIpv4) {
-          parts.push(root.selfIpv4)
-        }
-      } else {
-        parts.push("Off")
+    Row {
+      id: barContentRow
+      anchors.centerIn: parent
+      spacing: Style.space(6)
+
+      Image {
+        source: Qt.resolvedUrl("icon.png")
+        width: Style.space(16)
+        height: Style.space(16)
+        anchors.verticalCenter: parent.verticalCenter
+        smooth: true
+        mipmap: true
+        opacity: root.connected ? 1.0 : 0.45
       }
-      return parts.join(" ")
+
+      Text {
+        visible: !root.connected || root.isRoutingExit || (root.showIpOnBar && root.selfIpv4)
+        anchors.verticalCenter: parent.verticalCenter
+        textFormat: Text.PlainText
+        font.family: root.fontFamily
+        font.pixelSize: Style.font.body
+        color: root.opened ? root.accent : root.foreground
+        text: {
+          if (!root.connected) return "Off"
+          var parts = []
+          if (root.isRoutingExit) {
+            parts.push(root.glyphExitNode + " " + (root.activeExitName || "Exit"))
+          }
+          if (root.showIpOnBar && root.selfIpv4) {
+            parts.push(root.selfIpv4)
+          }
+          return parts.join(" ")
+        }
+      }
     }
 
     tooltipText: {
@@ -321,11 +342,14 @@ Panel {
                 Layout.fillWidth: true
                 spacing: Style.space(8)
 
-                Text {
-                  text: root.glyphTailscale
-                  font.family: root.fontFamily
-                  font.pixelSize: Style.font.title * 1.2
-                  color: root.connected ? root.accent : root.dim
+                Image {
+                  source: Qt.resolvedUrl("icon.png")
+                  width: Style.space(28)
+                  height: Style.space(28)
+                  Layout.alignment: Qt.AlignVCenter
+                  smooth: true
+                  mipmap: true
+                  opacity: root.connected ? 1.0 : 0.45
                 }
 
                 ColumnLayout {
