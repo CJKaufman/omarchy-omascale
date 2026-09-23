@@ -237,7 +237,7 @@ Panel {
     useActiveColor: true
     labelVisible: false
     hasVisualContent: true
-    fixedWidth: barContentRow.implicitWidth + Style.space(16)
+    fixedWidth: barContentRow.implicitWidth + Style.space(12)
 
     Row {
       id: barContentRow
@@ -245,7 +245,7 @@ Panel {
       spacing: Style.space(6)
 
       OmaScaleIcon {
-        iconSize: Style.space(16)
+        iconSize: Style.space(12)
         color: root.opened ? root.accent : root.foreground
         connected: root.connected
         anchors.verticalCenter: parent.verticalCenter
