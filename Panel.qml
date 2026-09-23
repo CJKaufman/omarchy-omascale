@@ -244,14 +244,11 @@ Panel {
       anchors.centerIn: parent
       spacing: Style.space(6)
 
-      Image {
-        source: Qt.resolvedUrl("icon.png")
-        width: Style.space(16)
-        height: Style.space(16)
+      OmaScaleIcon {
+        iconSize: Style.space(16)
+        color: root.opened ? root.accent : root.foreground
+        connected: root.connected
         anchors.verticalCenter: parent.verticalCenter
-        smooth: true
-        mipmap: true
-        opacity: root.connected ? 1.0 : 0.45
       }
 
       Text {
@@ -342,14 +339,11 @@ Panel {
                 Layout.fillWidth: true
                 spacing: Style.space(8)
 
-                Image {
-                  source: Qt.resolvedUrl("icon.png")
-                  width: Style.space(28)
-                  height: Style.space(28)
+                OmaScaleIcon {
+                  iconSize: Style.space(28)
+                  color: root.connected ? root.accent : root.dim
+                  connected: root.connected
                   Layout.alignment: Qt.AlignVCenter
-                  smooth: true
-                  mipmap: true
-                  opacity: root.connected ? 1.0 : 0.45
                 }
 
                 ColumnLayout {
