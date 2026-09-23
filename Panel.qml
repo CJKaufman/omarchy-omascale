@@ -281,7 +281,7 @@ Panel {
     bar: root.bar
     open: root.opened
     focusTarget: keyCatcher
-    contentWidth: panel.fittedContentWidth(Style.space(440))
+    contentWidth: panel.fittedContentWidth(Style.space(460))
     contentHeight: panel.fittedContentHeight(menuCol.implicitHeight + Style.space(24), Style.space(580))
 
     PanelKeyCatcher {
@@ -414,7 +414,7 @@ Panel {
                   spacing: Style.space(8)
 
                   Text {
-                    text: "Local Tailscale IP:"
+                    text: "Local IP:"
                     textFormat: Text.PlainText
                     font.family: root.fontFamily
                     font.pixelSize: Style.font.caption
@@ -779,14 +779,18 @@ Panel {
                     font.family: root.fontFamily
                     font.pixelSize: Style.font.body
                     color: peerCard.modelData.online ? root.foreground : root.dim
+                    Layout.alignment: Qt.AlignVCenter
                   }
 
-                  // Device Details Column
+                  // Device Details Column (Left side: expands to fill all available space)
                   ColumnLayout {
                     Layout.fillWidth: true
-                    spacing: 1
+                    Layout.preferredWidth: 0
+                    Layout.alignment: Qt.AlignVCenter
+                    spacing: 2
 
                     RowLayout {
+                      Layout.fillWidth: true
                       spacing: Style.space(6)
 
                       Text {
@@ -797,7 +801,7 @@ Panel {
                         font.bold: true
                         color: peerCard.modelData.online ? root.foreground : root.dim
                         elide: Text.ElideRight
-                        Layout.maximumWidth: Style.space(180)
+                        Layout.fillWidth: true
                       }
 
                       Rectangle {
@@ -805,6 +809,7 @@ Panel {
                         implicitHeight: Style.space(6)
                         radius: 3
                         color: peerCard.modelData.online ? root.successColor : root.dim
+                        Layout.alignment: Qt.AlignVCenter
                       }
 
                       Rectangle {
@@ -815,6 +820,7 @@ Panel {
                         color: Qt.rgba(root.accent.r, root.accent.g, root.accent.b, 0.18)
                         border.color: root.accent
                         border.width: 1
+                        Layout.alignment: Qt.AlignVCenter
 
                         Text {
                           id: exitBadgeText
@@ -830,6 +836,7 @@ Panel {
                     }
 
                     RowLayout {
+                      Layout.fillWidth: true
                       spacing: Style.space(4)
 
                       Text {
@@ -852,82 +859,93 @@ Panel {
                     }
                   }
 
+                  // Action Buttons Group (Right side: fixed width buttons aligned in columns)
+                  RowLayout {
+                    Layout.alignment: Qt.AlignVCenter
+                    spacing: Style.space(6)
 
-                  // Copy IP Button
-                  Rectangle {
-                    implicitWidth: copyLabel.implicitWidth + Style.space(10)
-                    implicitHeight: Style.space(24)
-                    radius: 4
-                    color: (root.lastCopiedIp === peerCard.peerIp) ? Qt.rgba(root.successColor.r, root.successColor.g, root.successColor.b, 0.2) : (copyArea.containsMouse ? root.subtleBg : "transparent")
-                    border.color: (root.lastCopiedIp === peerCard.peerIp) ? root.successColor : root.borderCol
-                    border.width: 1
+                    // Copy IP Button
+                    Rectangle {
+                      implicitWidth: Style.space(68)
+                      implicitHeight: Style.space(26)
+                      radius: 4
+                      color: (root.lastCopiedIp === peerCard.peerIp) ? Qt.rgba(root.successColor.r, root.successColor.g, root.successColor.b, 0.2) : (copyArea.containsMouse ? root.subtleBg : "transparent")
+                      border.color: (root.lastCopiedIp === peerCard.peerIp) ? root.successColor : root.borderCol
+                      border.width: 1
 
-                    RowLayout {
-                      id: copyLabel
-                      anchors.centerIn: parent
-                      spacing: Style.space(4)
-                      Text {
-                        text: (root.lastCopiedIp === peerCard.peerIp) ? root.glyphCheck : root.glyphCopy
-                        font.family: root.fontFamily
-                        font.pixelSize: Style.font.caption * 0.9
-                        color: (root.lastCopiedIp === peerCard.peerIp) ? root.successColor : root.foreground
+                      RowLayout {
+                        anchors.centerIn: parent
+                        spacing: Style.space(4)
+                        Text {
+                          text: (root.lastCopiedIp === peerCard.peerIp) ? root.glyphCheck : root.glyphCopy
+                          font.family: root.fontFamily
+                          font.pixelSize: Style.font.caption * 0.9
+                          color: (root.lastCopiedIp === peerCard.peerIp) ? root.successColor : root.foreground
+                        }
+                        Text {
+                          text: (root.lastCopiedIp === peerCard.peerIp) ? "Copied" : "Copy"
+                          textFormat: Text.PlainText
+                          font.family: root.fontFamily
+                          font.pixelSize: Style.font.caption * 0.85
+                          color: (root.lastCopiedIp === peerCard.peerIp) ? root.successColor : root.foreground
+                        }
                       }
-                      Text {
-                        text: (root.lastCopiedIp === peerCard.peerIp) ? "Copied" : "Copy IP"
-                        textFormat: Text.PlainText
-                        font.family: root.fontFamily
-                        font.pixelSize: Style.font.caption * 0.85
-                        color: (root.lastCopiedIp === peerCard.peerIp) ? root.successColor : root.foreground
-                      }
-                    }
 
-                    MouseArea {
-                      id: copyArea
-                      anchors.fill: parent
-                      hoverEnabled: true
-                      cursorShape: Qt.PointingHandCursor
-                      onClicked: root.copyIp(peerCard.peerIp, peerCard.peerHost)
-                    }
-                  }
-
-                  // Ping Button (Online devices only)
-                  Rectangle {
-                    visible: peerCard.modelData.online === true
-                    implicitWidth: pingLabel.implicitWidth + Style.space(10)
-                    implicitHeight: Style.space(24)
-                    radius: 4
-                    color: peerCard.isBeingPinged ? Qt.rgba(root.accent.r, root.accent.g, root.accent.b, 0.25) : (pingArea.containsMouse ? root.subtleBg : "transparent")
-                    border.color: peerCard.isBeingPinged ? root.accent : root.borderCol
-                    border.width: 1
-
-                    RowLayout {
-                      id: pingLabel
-                      anchors.centerIn: parent
-                      spacing: Style.space(4)
-                      Text {
-                        text: root.glyphPing
-                        font.family: root.fontFamily
-                        font.pixelSize: Style.font.caption * 0.9
-                        color: peerCard.isBeingPinged ? root.accent : root.foreground
-                      }
-                      Text {
-                        text: peerCard.isBeingPinged ? "..." : "Ping"
-                        textFormat: Text.PlainText
-                        font.family: root.fontFamily
-                        font.pixelSize: Style.font.caption * 0.85
-                        color: peerCard.isBeingPinged ? root.accent : root.foreground
+                      MouseArea {
+                        id: copyArea
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: root.copyIp(peerCard.peerIp, peerCard.peerHost)
                       }
                     }
 
-                    MouseArea {
-                      id: pingArea
-                      anchors.fill: parent
-                      hoverEnabled: true
-                      cursorShape: Qt.PointingHandCursor
-                      onClicked: root.pingPeer(peerCard.peerIp)
+                    // Ping Button (Online devices only)
+                    Rectangle {
+                      visible: peerCard.modelData.online === true
+                      implicitWidth: Style.space(60)
+                      implicitHeight: Style.space(26)
+                      radius: 4
+                      color: peerCard.isBeingPinged ? Qt.rgba(root.accent.r, root.accent.g, root.accent.b, 0.25) : (pingArea.containsMouse ? root.subtleBg : "transparent")
+                      border.color: peerCard.isBeingPinged ? root.accent : root.borderCol
+                      border.width: 1
+
+                      RowLayout {
+                        anchors.centerIn: parent
+                        spacing: Style.space(4)
+                        Text {
+                          text: root.glyphPing
+                          font.family: root.fontFamily
+                          font.pixelSize: Style.font.caption * 0.9
+                          color: peerCard.isBeingPinged ? root.accent : root.foreground
+                        }
+                        Text {
+                          text: peerCard.isBeingPinged ? "..." : "Ping"
+                          textFormat: Text.PlainText
+                          font.family: root.fontFamily
+                          font.pixelSize: Style.font.caption * 0.85
+                          color: peerCard.isBeingPinged ? root.accent : root.foreground
+                        }
+                      }
+
+                      MouseArea {
+                        id: pingArea
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: root.pingPeer(peerCard.peerIp)
+                      }
+                    }
+
+                    // Spacer placeholder for offline devices to keep Copy button strictly aligned
+                    Item {
+                      visible: !peerCard.modelData.online
+                      implicitWidth: Style.space(60)
+                      implicitHeight: Style.space(26)
                     }
                   }
                 }
+
 
                 MouseArea {
                   id: peerCardArea
