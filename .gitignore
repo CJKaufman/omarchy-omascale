@@ -1,0 +1,10 @@
+# Runtime state and temporary files
+state.json
+.state.tmp*
+*.pid
+*.lock
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class

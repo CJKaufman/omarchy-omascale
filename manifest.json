@@ -1,0 +1,45 @@
+{
+  "schemaVersion": 1,
+  "id": "cjkaufman.omascale",
+  "name": "OmaScale",
+  "version": "1.0.0",
+  "author": "Carl Kaufman",
+  "license": "MIT",
+  "description": "Tailscale management and network telemetry bar widget for Omarchy. Switch exit nodes, copy peer IPv4 addresses, ping latency, and monitor tailnet state.",
+  "kinds": [
+    "bar-widget"
+  ],
+  "entryPoints": {
+    "barWidget": "Panel.qml"
+  },
+  "barWidget": {
+    "displayName": "OmaScale",
+    "description": "Tailscale exit node router, peer telemetry, and latency monitor.",
+    "category": "Network",
+    "aliases": ["tailscale", "vpn", "omascale", "tailnet"],
+    "allowMultiple": false,
+    "defaultSection": "right",
+    "defaults": {
+      "refreshIntervalSec": 10,
+      "showIpOnBar": false
+    },
+    "schema": [
+      {
+        "key": "refreshIntervalSec",
+        "type": "int",
+        "label": "State Refresh Interval (seconds)",
+        "min": 5,
+        "max": 300,
+        "defaultValue": 10,
+        "description": "How often the background status poller refreshes Tailscale state."
+      },
+      {
+        "key": "showIpOnBar",
+        "type": "boolean",
+        "label": "Show Local IPv4 on Top Bar",
+        "defaultValue": false,
+        "description": "Display this machine's Tailscale IPv4 directly on the status bar."
+      }
+    ]
+  }
+}

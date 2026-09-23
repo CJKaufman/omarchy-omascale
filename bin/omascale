@@ -1,0 +1,563 @@
+#!/usr/bin/env python3
+"""
+OmaScale Backend Helper
+Manages Tailscale status polling, exit node routing, peer discovery,
+on-demand latency pinging, and Wayland clipboard integration.
+
+Adheres strictly to Omarchy Quattro security and marketplace standards.
+"""
+
+import os
+import sys
+import json
+import time
+import stat
+import re
+import select
+import subprocess
+import secrets
+from pathlib import Path
+
+MAX_FILE_BYTES = 65536
+MAX_SUBPROCESS_BYTES = 262144
+
+TAILSCALE_BIN = "/usr/bin/tailscale"
+WL_COPY_BIN = "/usr/bin/wl-copy"
+NOTIFY_SEND_BIN = "/usr/bin/notify-send"
+
+STATE_DIR = Path.home() / ".local/state/omarchy/cjkaufman.omascale"
+STATE_FILE = STATE_DIR / "state.json"
+
+IP_V4_REGEX = re.compile(r"^100\.\d{1,3}\.\d{1,3}\.\d{1,3}$")
+IP_GENERIC_REGEX = re.compile(r"^[0-9a-fA-F:.]+$")
+HOSTNAME_REGEX = re.compile(r"^[a-zA-Z0-9][-a-zA-Z0-9.]*[a-zA-Z0-9]$|^[a-zA-Z0-9]$")
+
+
+def is_trusted_executable(file_path):
+    """
+    Validates that a path:
+    1. Exists and is not empty.
+    2. Parent directory is not world-writable.
+    3. Is owned by root (uid 0) or the current user.
+    4. Is not world-writable (mode & 0o002 == 0).
+    5. Is a regular file (or symlink pointing to an owned regular file).
+    6. Has executable permission bit set.
+    """
+    if not file_path:
+        return False
+    try:
+        raw_path = os.path.abspath(str(file_path))
+        st_raw = os.lstat(raw_path)
+
+        parent_dir = os.path.dirname(raw_path)
+        if os.path.exists(parent_dir):
+            st_parent = os.stat(parent_dir)
+            if st_parent.st_mode & 0o002 != 0:
+                return False
+
+        if stat.S_ISLNK(st_raw.st_mode):
+            if st_raw.st_uid not in (0, os.getuid()):
+                return False
+            real_path = os.path.realpath(raw_path)
+            st_real = os.stat(real_path)
+            if not stat.S_ISREG(st_real.st_mode):
+                return False
+            if st_real.st_uid not in (0, os.getuid()):
+                return False
+            if st_real.st_mode & 0o002 != 0:
+                return False
+            if not os.access(real_path, os.X_OK):
+                return False
+            return True
+        else:
+            if not stat.S_ISREG(st_raw.st_mode):
+                return False
+            if st_raw.st_uid not in (0, os.getuid()):
+                return False
+            if st_raw.st_mode & 0o002 != 0:
+                return False
+            if not os.access(raw_path, os.X_OK):
+                return False
+            return True
+    except Exception:
+        return False
+
+
+def get_trusted_tool(name, default_path):
+    candidates = [default_path, f"/bin/{name}", f"/usr/local/bin/{name}"]
+    for cand in candidates:
+        if is_trusted_executable(cand):
+            return cand
+    return None
+
+
+def run_cmd_bounded(cmd, timeout=4.0, max_bytes=MAX_SUBPROCESS_BYTES):
+    """
+    Executes command with strict timeout and output byte ceiling.
+    Terminates and reaps child processes if boundaries are exceeded.
+    """
+    proc = None
+    try:
+        proc = subprocess.Popen(
+            cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            close_fds=True
+        )
+        out_chunks = []
+        bytes_read = 0
+        deadline = time.time() + timeout
+
+        os.set_blocking(proc.stdout.fileno(), False)
+
+        while time.time() < deadline:
+            ret = proc.poll()
+            r, _, _ = select.select([proc.stdout], [], [], 0.2)
+            if r:
+                chunk = proc.stdout.read(4096)
+                if not chunk:
+                    break
+                out_chunks.append(chunk)
+                bytes_read += len(chunk)
+                if bytes_read >= max_bytes:
+                    proc.kill()
+                    proc.wait()
+                    break
+            elif ret is not None:
+                break
+        else:
+            proc.kill()
+            proc.wait()
+            return ""
+
+        if proc.poll() is None:
+            proc.kill()
+            proc.wait()
+
+        return b"".join(out_chunks)[:max_bytes].decode("utf-8", errors="ignore").strip()
+    except Exception:
+        if proc:
+            try:
+                proc.kill()
+                proc.wait()
+            except Exception:
+                pass
+        return ""
+
+
+def ensure_state_dir():
+    """Traverse component-by-component enforcing owner, mode 0o700, and rejecting symlinks."""
+    current = Path.home()
+    for part in [".local", "state", "omarchy", "cjkaufman.omascale"]:
+        current = current / part
+        c_str = str(current)
+        if os.path.islink(c_str):
+            os.unlink(c_str)
+        if not os.path.exists(c_str):
+            os.mkdir(c_str, 0o700)
+        st = os.lstat(c_str)
+        if stat.S_ISLNK(st.st_mode):
+            raise PermissionError(f"Symlink detected at {c_str}")
+        if st.st_uid != os.getuid():
+            raise PermissionError(f"Directory not owned by current user: {c_str}")
+        if current == STATE_DIR:
+            os.chmod(c_str, 0o700)
+
+
+def safe_write_state(state):
+    """Atomic write to STATE_FILE with O_NOFOLLOW, O_CLOEXEC, 0o600, and fsync."""
+    ensure_state_dir()
+    payload = json.dumps(state, indent=2).encode("utf-8")
+    if len(payload) > MAX_FILE_BYTES:
+        raise ValueError("State payload exceeds maximum byte limit")
+    tmp_path = str(STATE_DIR / f".state.tmp.{os.getpid()}.{secrets.token_hex(4)}")
+    flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_CLOEXEC", 0)
+    try:
+        fd = os.open(tmp_path, flags, 0o600)
+        with os.fdopen(fd, "wb") as f:
+            f.write(payload)
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(tmp_path, str(STATE_FILE))
+    except Exception as e:
+        if os.path.exists(tmp_path):
+            try:
+                os.unlink(tmp_path)
+            except Exception:
+                pass
+        print(f"Failed to write state: {e}", file=sys.stderr)
+
+
+def safe_read_state():
+    """Safely reads STATE_FILE verifying ownership and avoiding symlinks."""
+    if not STATE_FILE.exists():
+        return None
+    try:
+        st = os.lstat(str(STATE_FILE))
+        if stat.S_ISLNK(st.st_mode) or st.st_uid != os.getuid():
+            return None
+        flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_CLOEXEC", 0)
+        fd = os.open(str(STATE_FILE), flags)
+        with os.fdopen(fd, "rb") as f:
+            data = f.read(MAX_FILE_BYTES)
+            return json.loads(data.decode("utf-8", errors="ignore"))
+    except Exception:
+        return None
+
+
+def sanitize_ip(ip_val):
+    if not ip_val:
+        return None
+    ip_clean = str(ip_val).strip()
+    if IP_V4_REGEX.match(ip_clean) or IP_GENERIC_REGEX.match(ip_clean):
+        return ip_clean
+    return None
+
+
+def sanitize_exit_node(node_val):
+    if node_val is None:
+        return ""
+    clean = str(node_val).strip()
+    if not clean or clean in ("", "none", "off", "clear"):
+        return ""
+    if clean.startswith("-"):
+        return None
+    if HOSTNAME_REGEX.match(clean) or IP_GENERIC_REGEX.match(clean):
+        return clean
+    return None
+
+
+def get_tailscale_status():
+    ts_bin = get_trusted_tool("tailscale", TAILSCALE_BIN)
+    if not ts_bin:
+        return {
+            "connected": False,
+            "backend_state": "MissingBinary",
+            "self": {},
+            "exit_nodes": [],
+            "peers": [],
+            "timestamp": int(time.time()),
+            "error": "Tailscale executable not found or untrusted"
+        }
+
+    raw_json = run_cmd_bounded([ts_bin, "status", "--json"], timeout=4.0)
+    if not raw_json:
+        return {
+            "connected": False,
+            "backend_state": "Offline",
+            "self": {},
+            "exit_nodes": [],
+            "peers": [],
+            "timestamp": int(time.time()),
+            "error": "Failed to connect to tailscaled"
+        }
+
+    try:
+        data = json.loads(raw_json)
+    except Exception as e:
+        return {
+            "connected": False,
+            "backend_state": "ParseError",
+            "self": {},
+            "exit_nodes": [],
+            "peers": [],
+            "timestamp": int(time.time()),
+            "error": str(e)
+        }
+
+    backend_state = data.get("BackendState", "Unknown")
+    is_connected = backend_state == "Running"
+
+    self_node = data.get("Self", {})
+    self_ips = self_node.get("TailscaleIPs", [])
+    self_ipv4 = self_ips[0] if len(self_ips) > 0 else ""
+    self_ipv6 = self_ips[1] if len(self_ips) > 1 else ""
+
+    exit_node_status = data.get("ExitNodeStatus")
+    active_exit_ip = ""
+    active_exit_name = ""
+    if exit_node_status:
+        exit_ips = exit_node_status.get("TailscaleIPs", [])
+        if exit_ips:
+            active_exit_ip = exit_ips[0].split("/")[0]
+
+    # Query tailscale exit-node list for country and city metadata
+    raw_exit_list = run_cmd_bounded([ts_bin, "exit-node", "list"], timeout=3.0)
+    exit_list_map = {}
+    if raw_exit_list:
+        for line in raw_exit_list.splitlines():
+            line = line.strip()
+            if not line or line.startswith("#") or line.startswith("IP"):
+                continue
+            parts = [p.strip() for p in line.split() if p.strip()]
+            if len(parts) >= 2:
+                node_ip = parts[0]
+                node_host = parts[1]
+                country = parts[2] if len(parts) > 2 and parts[2] != "-" else ""
+                city = parts[3] if len(parts) > 3 and parts[3] != "-" else ""
+                exit_list_map[node_ip] = {
+                    "hostname": node_host,
+                    "country": country,
+                    "city": city
+                }
+
+    peers = []
+    exit_nodes = []
+
+    for k, v in data.get("Peer", {}).items():
+        p_ips = v.get("TailscaleIPs", [])
+        p_ipv4 = p_ips[0] if len(p_ips) > 0 else ""
+        p_ipv6 = p_ips[1] if len(p_ips) > 1 else ""
+
+        is_exit_opt = bool(v.get("ExitNodeOption", False))
+        is_active_exit = bool(v.get("ExitNode", False))
+
+        if is_active_exit and not active_exit_name:
+            active_exit_name = v.get("HostName", "")
+            active_exit_ip = p_ipv4
+
+        peer_entry = {
+            "id": v.get("ID", ""),
+            "hostname": v.get("HostName", "Unknown"),
+            "dns_name": v.get("DNSName", "").rstrip("."),
+            "ipv4": p_ipv4,
+            "ipv6": p_ipv6,
+            "os": v.get("OS", "unknown").lower(),
+            "online": bool(v.get("Online", False)),
+            "active": bool(v.get("Active", False)),
+            "is_exit_node": is_exit_opt,
+            "is_active_exit": is_active_exit,
+            "rx_bytes": v.get("RxBytes", 0),
+            "tx_bytes": v.get("TxBytes", 0),
+            "last_seen": v.get("LastSeen", ""),
+            "cur_addr": v.get("CurAddr", ""),
+            "relay": v.get("Relay", "")
+        }
+        peers.append(peer_entry)
+
+        if is_exit_opt:
+            meta = exit_list_map.get(p_ipv4, {})
+            exit_nodes.append({
+                "ip": p_ipv4,
+                "hostname": v.get("HostName", meta.get("hostname", "")),
+                "dns_name": v.get("DNSName", "").rstrip("."),
+                "country": meta.get("country", ""),
+                "city": meta.get("city", ""),
+                "active": is_active_exit,
+                "online": bool(v.get("Online", False))
+            })
+
+    # Sort peers: Online & Active first, then Online, then alphabetical by HostName
+    peers.sort(key=lambda p: (not p["active"], not p["online"], p["hostname"].lower()))
+
+    # Read lan access preference
+    lan_access = False
+    raw_prefs = run_cmd_bounded([ts_bin, "debug", "prefs"], timeout=2.0)
+    if raw_prefs:
+        try:
+            prefs_json = json.loads(raw_prefs)
+            lan_access = bool(prefs_json.get("ExitNodeAllowLANAccess", False))
+        except Exception:
+            pass
+
+    return {
+        "connected": is_connected,
+        "backend_state": backend_state,
+        "self": {
+            "hostname": self_node.get("HostName", "This Device"),
+            "dns_name": self_node.get("DNSName", "").rstrip("."),
+            "ipv4": self_ipv4,
+            "ipv6": self_ipv6,
+            "os": self_node.get("OS", "linux"),
+            "rx_bytes": self_node.get("RxBytes", 0),
+            "tx_bytes": self_node.get("TxBytes", 0),
+            "active_exit_node_name": active_exit_name,
+            "active_exit_node_ip": active_exit_ip,
+            "is_routing_exit": bool(active_exit_ip or active_exit_name),
+            "lan_access": lan_access
+        },
+        "exit_nodes": exit_nodes,
+        "peers": peers,
+        "total_peers": len(peers),
+        "online_peers": sum(1 for p in peers if p["online"]),
+        "timestamp": int(time.time())
+    }
+
+
+def handle_set_exit_node(target):
+    ts_bin = get_trusted_tool("tailscale", TAILSCALE_BIN)
+    if not ts_bin:
+        return {"success": False, "error": "tailscale binary untrusted"}
+
+    clean_target = sanitize_exit_node(target)
+    if clean_target is None:
+        return {"success": False, "error": "Invalid exit node name or IP"}
+
+    cmd = [ts_bin, "set", f"--exit-node={clean_target}"]
+    out = run_cmd_bounded(cmd, timeout=5.0)
+
+    # Perform immediate state sync
+    new_state = get_tailscale_status()
+    safe_write_state(new_state)
+
+    notif_bin = get_trusted_tool("notify-send", NOTIFY_SEND_BIN)
+    if notif_bin:
+        msg = f"Switched to {clean_target}" if clean_target else "Direct connection restored"
+        subprocess.run(
+            [notif_bin, "-u", "low", "-a", "OmaScale", "Exit Node Updated", msg],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL
+        )
+
+    return {"success": True, "exit_node": clean_target, "state": new_state}
+
+
+def handle_set_lan_access(enabled_str):
+    ts_bin = get_trusted_tool("tailscale", TAILSCALE_BIN)
+    if not ts_bin:
+        return {"success": False, "error": "tailscale binary untrusted"}
+
+    val_bool = str(enabled_str).lower() in ("true", "1", "yes")
+    cmd = [ts_bin, "set", f"--exit-node-allow-lan-access={'true' if val_bool else 'false'}"]
+    out = run_cmd_bounded(cmd, timeout=5.0)
+
+    new_state = get_tailscale_status()
+    safe_write_state(new_state)
+    return {"success": True, "lan_access": val_bool, "state": new_state}
+
+
+def handle_ping(ip):
+    ts_bin = get_trusted_tool("tailscale", TAILSCALE_BIN)
+    if not ts_bin:
+        return {"success": False, "error": "tailscale binary untrusted"}
+
+    clean_ip = sanitize_ip(ip)
+    if not clean_ip:
+        return {"success": False, "error": "Invalid IP address format"}
+
+    out = run_cmd_bounded([ts_bin, "ping", "--c", "1", "--timeout=2.5s", clean_ip], timeout=4.0)
+
+    # Output format: "pong from cjsfold5 (100.87.211.41) via 192.168.0.10:40325 in 43ms"
+    # Or "pong from ... via DERP(jnb) in 68ms"
+    match = re.search(r"in\s+(\d+(?:\.\d+)?ms)", out)
+    latency_str = match.group(1) if match else None
+
+    direct = "via DERP" not in out and "timed out" not in out and "no reply" not in out
+    success = latency_str is not None
+
+    return {
+        "success": success,
+        "ip": clean_ip,
+        "latency": latency_str if latency_str else "Timeout",
+        "direct": direct,
+        "raw": out.strip()
+    }
+
+
+def handle_copy(ip, label=""):
+    wl_bin = get_trusted_tool("wl-copy", WL_COPY_BIN)
+    if not wl_bin:
+        return {"success": False, "error": "wl-copy binary untrusted"}
+
+    clean_ip = sanitize_ip(ip)
+    if not clean_ip:
+        return {"success": False, "error": "Invalid IP address format"}
+
+    try:
+        proc = subprocess.Popen(
+            [wl_bin],
+            stdin=subprocess.PIPE,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            close_fds=True
+        )
+        proc.communicate(input=clean_ip.encode("utf-8"), timeout=2.0)
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+    notif_bin = get_trusted_tool("notify-send", NOTIFY_SEND_BIN)
+    if notif_bin:
+        dev_label = str(label)[:32] if label else "Device"
+        subprocess.run(
+            [notif_bin, "-u", "low", "-a", "OmaScale", "IP Copied", f"Copied {clean_ip} ({dev_label})"],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL
+        )
+
+    return {"success": True, "ip": clean_ip}
+
+
+def handle_toggle():
+    ts_bin = get_trusted_tool("tailscale", TAILSCALE_BIN)
+    if not ts_bin:
+        return {"success": False, "error": "tailscale binary untrusted"}
+
+    cur_state = get_tailscale_status()
+    action = "down" if cur_state.get("connected") else "up"
+    out = run_cmd_bounded([ts_bin, action], timeout=5.0)
+
+    time.sleep(0.5)
+    new_state = get_tailscale_status()
+    safe_write_state(new_state)
+    return {"success": True, "action": action, "state": new_state}
+
+
+def process_action(action, args):
+    if action in ("status", "get"):
+        return get_tailscale_status()
+    elif action in ("sync", "refresh"):
+        st = get_tailscale_status()
+        safe_write_state(st)
+        return st
+    elif action in ("set-exit-node", "exit-node"):
+        target = args[0] if len(args) > 0 else ""
+        return handle_set_exit_node(target)
+    elif action in ("set-lan-access", "lan-access"):
+        val = args[0] if len(args) > 0 else "false"
+        return handle_set_lan_access(val)
+    elif action == "ping":
+        if len(args) < 1:
+            return {"success": False, "error": "Missing IP parameter"}
+        return handle_ping(args[0])
+    elif action == "copy":
+        if len(args) < 1:
+            return {"success": False, "error": "Missing IP parameter"}
+        label = args[1] if len(args) > 1 else ""
+        return handle_copy(args[0], label)
+    elif action == "toggle":
+        return handle_toggle()
+    else:
+        return {"success": False, "error": f"Unknown action: {action}"}
+
+
+def main():
+    # If payload passed over stdin (Omarchy IPC standard)
+    if not sys.stdin.isatty():
+        try:
+            r, _, _ = select.select([sys.stdin], [], [], 0.05)
+            if r:
+                raw_in = sys.stdin.read(MAX_FILE_BYTES).strip()
+                if raw_in:
+                    data = json.loads(raw_in)
+                    action = data.get("action", "sync")
+                    args = data.get("args", [])
+                    res = process_action(action, args)
+                    print(json.dumps(res))
+                    return
+        except Exception:
+            pass
+
+    # Command line argument processing
+    if len(sys.argv) < 2:
+        action = "sync"
+        args = []
+    else:
+        action = sys.argv[1].lower()
+        args = sys.argv[2:]
+
+    result = process_action(action, args)
+    print(json.dumps(result))
+
+
+if __name__ == "__main__":
+    main()
