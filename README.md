@@ -15,7 +15,7 @@ A native Omarchy status bar widget and interactive network control panel for Tai
 - 📋 **1-Click IPv4 Copying:** Instant clipboard copying for your local Tailscale IP or any peer device across the mesh network using native clipboard integration and `wl-copy`.
 - ⚡ **Live Latency & Route Probing:** Ping any peer on demand (`tailscale ping --c 1 <ip>`) to view actual roundtrip latency (ms) and determine whether traffic is flowing over a direct connection or relayed via a DERP node.
 - 🔍 **Search & Instant Filters:** Quick-search peers by hostname or IP address, or filter devices by All, Online, Exit Nodes, and Offline.
-- 🛡️ **Zero-Privilege Security Model:** Runs entirely unprivileged without requiring `sudo` prompts or elevated root daemons. Does not disrupt or drop internet connections during polling or background checks.
+- 🛡️ **Zero-Privilege Security Model:** Runs entirely unprivileged without requiring elevated administrator permissions or root daemons. Does not disrupt or drop internet connections during polling or background checks.
 
 ---
 
