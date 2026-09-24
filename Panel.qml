@@ -421,9 +421,7 @@ Panel {
                   implicitHeight: Style.space(28)
                   radius: 6
                   color: powerArea.containsMouse ? root.subtleBg : "transparent"
-                  border.color: powerArea.containsMouse
-                    ? (root.connected ? root.urgent : root.successColor)
-                    : root.borderCol
+                  border.color: (powerArea.containsMouse ? (root.connected ? root.urgent : root.successColor) : root.borderCol)
                   border.width: 1
 
                   Text {
@@ -431,9 +429,7 @@ Panel {
                     text: "\uf011"
                     font.family: root.fontFamily
                     font.pixelSize: Style.font.caption
-                    color: powerArea.containsMouse
-                      ? (root.connected ? root.urgent : root.successColor)
-                      : (root.connected ? root.successColor : root.dim)
+                    color: (powerArea.containsMouse ? (root.connected ? root.urgent : root.successColor) : (root.connected ? root.successColor : root.dim))
                   }
 
                   MouseArea {
