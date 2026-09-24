@@ -347,7 +347,6 @@ Panel {
                 }
 
                 ColumnLayout {
-                  Layout.fillWidth: true
                   spacing: 1
 
                   RowLayout {
@@ -385,9 +384,12 @@ Panel {
                     font.pixelSize: Style.font.caption
                     color: root.dim
                     elide: Text.ElideRight
-                    Layout.maximumWidth: Style.space(260)
+                    Layout.maximumWidth: Style.space(220)
                   }
                 }
+
+                // Spacer pushing action buttons to the far right of the card
+                Item { Layout.fillWidth: true }
 
                 // Refresh Button
                 Rectangle {
@@ -415,21 +417,64 @@ Panel {
                   }
                 }
 
-                // Power Toggle Button
+                // Distinct Power Toggle Pill Button
                 Rectangle {
-                  implicitWidth: Style.space(28)
+                  id: heroPowerBtn
+                  implicitWidth: Style.space(84)
                   implicitHeight: Style.space(28)
                   radius: 6
-                  color: heroPowerArea.containsMouse ? root.subtleBg : "transparent"
-                  border.color: (heroPowerArea.containsMouse ? (root.connected ? root.urgent : root.successColor) : root.borderCol)
-                  border.width: 1
+                  color: {
+                    if (heroPowerArea.containsMouse) {
+                      return root.connected
+                        ? Qt.rgba(root.urgent.r, root.urgent.g, root.urgent.b, 0.22)
+                        : Qt.rgba(root.successColor.r, root.successColor.g, root.successColor.b, 0.22)
+                    }
+                    return root.connected
+                      ? Qt.rgba(root.successColor.r, root.successColor.g, root.successColor.b, 0.15)
+                      : Qt.rgba(root.urgent.r, root.urgent.g, root.urgent.b, 0.15)
+                  }
+                  border.color: {
+                    if (heroPowerArea.containsMouse) {
+                      return root.connected ? root.urgent : root.successColor
+                    }
+                    return root.connected ? root.successColor : root.urgent
+                  }
+                  border.width: 1.5
 
-                  Text {
+                  RowLayout {
                     anchors.centerIn: parent
-                    text: "\uf011"
-                    font.family: root.fontFamily
-                    font.pixelSize: Style.font.caption
-                    color: (heroPowerArea.containsMouse ? (root.connected ? root.urgent : root.successColor) : (root.connected ? root.successColor : root.dim))
+                    spacing: Style.space(5)
+
+                    Text {
+                      text: "\uf011"
+                      font.family: root.fontFamily
+                      font.pixelSize: Style.font.caption
+                      color: {
+                        if (heroPowerArea.containsMouse) {
+                          return root.connected ? root.urgent : root.successColor
+                        }
+                        return root.connected ? root.successColor : root.urgent
+                      }
+                    }
+
+                    Text {
+                      text: {
+                        if (heroPowerArea.containsMouse) {
+                          return root.connected ? "Turn Off" : "Turn On"
+                        }
+                        return root.connected ? "ON" : "OFF"
+                      }
+                      textFormat: Text.PlainText
+                      font.family: root.fontFamily
+                      font.pixelSize: Style.font.caption
+                      font.bold: true
+                      color: {
+                        if (heroPowerArea.containsMouse) {
+                          return root.connected ? root.urgent : root.successColor
+                        }
+                        return root.connected ? root.successColor : root.urgent
+                      }
+                    }
                   }
 
                   MouseArea {
