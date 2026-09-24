@@ -487,19 +487,35 @@ def handle_copy(ip, label=""):
     return {"success": True, "ip": clean_ip}
 
 
-def handle_toggle():
+def handle_connect(connect=True):
     ts_bin = get_trusted_tool("tailscale", TAILSCALE_BIN)
     if not ts_bin:
         return {"success": False, "error": "tailscale binary untrusted"}
 
-    cur_state = get_tailscale_status()
-    action = "down" if cur_state.get("connected") else "up"
-    out = run_cmd_bounded([ts_bin, action], timeout=5.0)
+    action = "up" if connect else "down"
+    timeout = 10.0 if connect else 5.0
+    out = run_cmd_bounded([ts_bin, action], timeout=timeout)
 
     time.sleep(0.5)
     new_state = get_tailscale_status()
     safe_write_state(new_state)
-    return {"success": True, "action": action, "state": new_state}
+
+    notif_bin = get_trusted_tool("notify-send", NOTIFY_SEND_BIN)
+    if notif_bin:
+        title = "Tailscale Connected" if connect else "Tailscale Disconnected"
+        body = "Connected to Tailscale network" if connect else "Disconnected from Tailscale network"
+        subprocess.run(
+            [notif_bin, "-u", "low", "-a", "OmaScale", title, body],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL
+        )
+
+    return {"success": True, "action": action, "connected": new_state.get("connected", False), "state": new_state}
+
+
+def handle_toggle():
+    cur_state = get_tailscale_status()
+    return handle_connect(not cur_state.get("connected", False))
 
 
 def process_action(action, args):
@@ -509,6 +525,10 @@ def process_action(action, args):
         st = get_tailscale_status()
         safe_write_state(st)
         return st
+    elif action in ("up", "connect"):
+        return handle_connect(True)
+    elif action in ("down", "disconnect"):
+        return handle_connect(False)
     elif action in ("set-exit-node", "exit-node"):
         target = args[0] if len(args) > 0 else ""
         return handle_set_exit_node(target)

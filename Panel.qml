@@ -414,6 +414,42 @@ Panel {
                     onClicked: root.runHelper(["sync"])
                   }
                 }
+
+                // Power Toggle Button
+                Rectangle {
+                  implicitWidth: Style.space(28)
+                  implicitHeight: Style.space(28)
+                  radius: 6
+                  color: powerArea.containsMouse ? root.subtleBg : "transparent"
+                  border.color: powerArea.containsMouse
+                    ? (root.connected ? root.urgent : root.successColor)
+                    : root.borderCol
+                  border.width: 1
+
+                  Text {
+                    anchors.centerIn: parent
+                    text: "\uf011"
+                    font.family: root.fontFamily
+                    font.pixelSize: Style.font.caption
+                    color: powerArea.containsMouse
+                      ? (root.connected ? root.urgent : root.successColor)
+                      : (root.connected ? root.successColor : root.dim)
+                  }
+
+                  MouseArea {
+                    id: powerArea
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: {
+                      if (root.connected) {
+                        root.runHelper(["disconnect"])
+                      } else {
+                        root.runHelper(["connect"])
+                      }
+                    }
+                  }
+                }
               }
 
               // Local IPv4 Card Pill with 1-Click Copy
