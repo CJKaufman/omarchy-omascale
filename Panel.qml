@@ -417,6 +417,47 @@ Panel {
                   }
                 }
 
+                // Admin Console Web Link Chip
+                Rectangle {
+                  id: heroAdminChip
+                  implicitWidth: heroAdminContent.implicitWidth + Style.space(16)
+                  implicitHeight: Style.space(28)
+                  radius: 6
+                  color: heroAdminArea.containsMouse ? root.subtleBg : "transparent"
+                  border.color: heroAdminArea.containsMouse ? root.accent : root.borderCol
+                  border.width: 1
+
+                  RowLayout {
+                    id: heroAdminContent
+                    anchors.centerIn: parent
+                    spacing: Style.space(5)
+
+                    Text {
+                      text: root.glyphExternal
+                      font.family: root.fontFamily
+                      font.pixelSize: Style.font.caption
+                      color: heroAdminArea.containsMouse ? root.accent : root.dim
+                    }
+
+                    Text {
+                      text: "Admin"
+                      textFormat: Text.PlainText
+                      font.family: root.fontFamily
+                      font.pixelSize: Style.font.caption
+                      font.bold: true
+                      color: heroAdminArea.containsMouse ? root.accent : root.foreground
+                    }
+                  }
+
+                  MouseArea {
+                    id: heroAdminArea
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: Qt.openUrlExternally("https://login.tailscale.com/admin/machines")
+                  }
+                }
+
                 // Distinct Power Toggle Pill Button
                 Rectangle {
                   id: heroPowerBtn
