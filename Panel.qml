@@ -420,8 +420,8 @@ Panel {
                   implicitWidth: Style.space(28)
                   implicitHeight: Style.space(28)
                   radius: 6
-                  color: powerArea.containsMouse ? root.subtleBg : "transparent"
-                  border.color: (powerArea.containsMouse ? (root.connected ? root.urgent : root.successColor) : root.borderCol)
+                  color: heroPowerArea.containsMouse ? root.subtleBg : "transparent"
+                  border.color: (heroPowerArea.containsMouse ? (root.connected ? root.urgent : root.successColor) : root.borderCol)
                   border.width: 1
 
                   Text {
@@ -429,11 +429,11 @@ Panel {
                     text: "\uf011"
                     font.family: root.fontFamily
                     font.pixelSize: Style.font.caption
-                    color: (powerArea.containsMouse ? (root.connected ? root.urgent : root.successColor) : (root.connected ? root.successColor : root.dim))
+                    color: (heroPowerArea.containsMouse ? (root.connected ? root.urgent : root.successColor) : (root.connected ? root.successColor : root.dim))
                   }
 
                   MouseArea {
-                    id: powerArea
+                    id: heroPowerArea
                     anchors.fill: parent
                     hoverEnabled: true
                     cursorShape: Qt.PointingHandCursor
