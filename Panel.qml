@@ -299,7 +299,7 @@ Panel {
     bar: root.bar
     open: root.opened
     focusTarget: keyCatcher
-    contentWidth: panel.fittedContentWidth(Style.space(460))
+    contentWidth: panel.fittedContentWidth(Style.space(480))
     contentHeight: panel.fittedContentHeight(menuCol.implicitHeight + Style.space(24), Style.space(580))
 
     PanelKeyCatcher {
@@ -384,150 +384,149 @@ Panel {
                     font.pixelSize: Style.font.caption
                     color: root.dim
                     elide: Text.ElideRight
-                    Layout.maximumWidth: Style.space(220)
+                    Layout.maximumWidth: Style.space(160)
                   }
                 }
 
                 // Spacer pushing action buttons to the far right of the card
                 Item { Layout.fillWidth: true }
 
-                // Refresh Button
-                Rectangle {
-                  implicitWidth: Style.space(28)
-                  implicitHeight: Style.space(28)
-                  radius: 6
-                  color: refreshArea.containsMouse ? root.subtleBg : "transparent"
-                  border.color: refreshArea.containsMouse ? root.accent : root.borderCol
-                  border.width: 1
+                RowLayout {
+                  spacing: Style.space(6)
 
-                  Text {
-                    anchors.centerIn: parent
-                    text: root.glyphRefresh
-                    font.family: root.fontFamily
-                    font.pixelSize: Style.font.caption
-                    color: refreshArea.containsMouse ? root.accent : root.foreground
-                  }
-
-                  MouseArea {
-                    id: refreshArea
-                    anchors.fill: parent
-                    hoverEnabled: true
-                    cursorShape: Qt.PointingHandCursor
-                    onClicked: root.runHelper(["sync"])
-                  }
-                }
-
-                // Admin Console Web Link Chip
-                Rectangle {
-                  id: heroAdminChip
-                  implicitWidth: heroAdminContent.implicitWidth + Style.space(16)
-                  implicitHeight: Style.space(28)
-                  radius: 6
-                  color: heroAdminArea.containsMouse ? root.subtleBg : "transparent"
-                  border.color: heroAdminArea.containsMouse ? root.accent : root.borderCol
-                  border.width: 1
-
-                  RowLayout {
-                    id: heroAdminContent
-                    anchors.centerIn: parent
-                    spacing: Style.space(5)
+                  // Refresh Button
+                  Rectangle {
+                    implicitWidth: Style.space(28)
+                    implicitHeight: Style.space(28)
+                    radius: 6
+                    color: refreshArea.containsMouse ? root.subtleBg : "transparent"
+                    border.color: refreshArea.containsMouse ? root.accent : root.borderCol
+                    border.width: 1
 
                     Text {
-                      text: root.glyphExternal
+                      anchors.centerIn: parent
+                      text: root.glyphRefresh
                       font.family: root.fontFamily
                       font.pixelSize: Style.font.caption
-                      color: heroAdminArea.containsMouse ? root.accent : root.dim
+                      color: refreshArea.containsMouse ? root.accent : root.foreground
                     }
 
-                    Text {
-                      text: "Admin"
-                      textFormat: Text.PlainText
-                      font.family: root.fontFamily
-                      font.pixelSize: Style.font.caption
-                      font.bold: true
-                      color: heroAdminArea.containsMouse ? root.accent : root.foreground
+                    MouseArea {
+                      id: refreshArea
+                      anchors.fill: parent
+                      hoverEnabled: true
+                      cursorShape: Qt.PointingHandCursor
+                      onClicked: root.runHelper(["sync"])
                     }
                   }
 
-                  MouseArea {
-                    id: heroAdminArea
-                    anchors.fill: parent
-                    hoverEnabled: true
-                    cursorShape: Qt.PointingHandCursor
-                    onClicked: Qt.openUrlExternally("https://login.tailscale.com/admin/machines")
-                  }
-                }
+                  // Admin Console Web Link Chip
+                  Rectangle {
+                    id: heroAdminChip
+                    implicitWidth: heroAdminContent.implicitWidth + Style.space(12)
+                    implicitHeight: Style.space(28)
+                    radius: 6
+                    color: heroAdminArea.containsMouse ? root.subtleBg : "transparent"
+                    border.color: heroAdminArea.containsMouse ? root.accent : root.borderCol
+                    border.width: 1
 
-                // Distinct Power Toggle Pill Button
-                Rectangle {
-                  id: heroPowerBtn
-                  implicitWidth: Style.space(84)
-                  implicitHeight: Style.space(28)
-                  radius: 6
-                  color: {
-                    if (heroPowerArea.containsMouse) {
+                    RowLayout {
+                      id: heroAdminContent
+                      anchors.centerIn: parent
+                      spacing: Style.space(4)
+
+                      Text {
+                        text: root.glyphExternal
+                        font.family: root.fontFamily
+                        font.pixelSize: Style.font.caption
+                        color: heroAdminArea.containsMouse ? root.accent : root.dim
+                      }
+
+                      Text {
+                        text: "Admin"
+                        textFormat: Text.PlainText
+                        font.family: root.fontFamily
+                        font.pixelSize: Style.font.caption
+                        font.bold: true
+                        color: heroAdminArea.containsMouse ? root.accent : root.foreground
+                      }
+                    }
+
+                    MouseArea {
+                      id: heroAdminArea
+                      anchors.fill: parent
+                      hoverEnabled: true
+                      cursorShape: Qt.PointingHandCursor
+                      onClicked: Qt.openUrlExternally("https://login.tailscale.com/admin/machines")
+                    }
+                  }
+
+                  // Distinct Power Toggle Pill Button
+                  Rectangle {
+                    id: heroPowerBtn
+                    implicitWidth: Style.space(64)
+                    implicitHeight: Style.space(28)
+                    radius: 6
+                    color: {
+                      if (heroPowerArea.containsMouse) {
+                        return root.connected
+                          ? Qt.rgba(root.urgent.r, root.urgent.g, root.urgent.b, 0.22)
+                          : Qt.rgba(root.successColor.r, root.successColor.g, root.successColor.b, 0.22)
+                      }
                       return root.connected
-                        ? Qt.rgba(root.urgent.r, root.urgent.g, root.urgent.b, 0.22)
-                        : Qt.rgba(root.successColor.r, root.successColor.g, root.successColor.b, 0.22)
+                        ? Qt.rgba(root.successColor.r, root.successColor.g, root.successColor.b, 0.15)
+                        : Qt.rgba(root.urgent.r, root.urgent.g, root.urgent.b, 0.15)
                     }
-                    return root.connected
-                      ? Qt.rgba(root.successColor.r, root.successColor.g, root.successColor.b, 0.15)
-                      : Qt.rgba(root.urgent.r, root.urgent.g, root.urgent.b, 0.15)
-                  }
-                  border.color: {
-                    if (heroPowerArea.containsMouse) {
-                      return root.connected ? root.urgent : root.successColor
+                    border.color: {
+                      if (heroPowerArea.containsMouse) {
+                        return root.connected ? root.urgent : root.successColor
+                      }
+                      return root.connected ? root.successColor : root.urgent
                     }
-                    return root.connected ? root.successColor : root.urgent
-                  }
-                  border.width: 1.5
+                    border.width: 1.5
 
-                  RowLayout {
-                    anchors.centerIn: parent
-                    spacing: Style.space(5)
+                    RowLayout {
+                      anchors.centerIn: parent
+                      spacing: Style.space(5)
 
-                    Text {
-                      text: "\uf011"
-                      font.family: root.fontFamily
-                      font.pixelSize: Style.font.caption
-                      color: {
-                        if (heroPowerArea.containsMouse) {
-                          return root.connected ? root.urgent : root.successColor
+                      Text {
+                        text: "\uf011"
+                        font.family: root.fontFamily
+                        font.pixelSize: Style.font.caption
+                        color: {
+                          if (heroPowerArea.containsMouse) {
+                            return root.connected ? root.urgent : root.successColor
+                          }
+                          return root.connected ? root.successColor : root.urgent
                         }
-                        return root.connected ? root.successColor : root.urgent
+                      }
+
+                      Text {
+                        text: root.connected ? "ON" : "OFF"
+                        textFormat: Text.PlainText
+                        font.family: root.fontFamily
+                        font.pixelSize: Style.font.caption
+                        font.bold: true
+                        color: {
+                          if (heroPowerArea.containsMouse) {
+                            return root.connected ? root.urgent : root.successColor
+                          }
+                          return root.connected ? root.successColor : root.urgent
+                        }
                       }
                     }
 
-                    Text {
-                      text: {
-                        if (heroPowerArea.containsMouse) {
-                          return root.connected ? "Turn Off" : "Turn On"
+                    MouseArea {
+                      id: heroPowerArea
+                      anchors.fill: parent
+                      hoverEnabled: true
+                      cursorShape: Qt.PointingHandCursor
+                      onClicked: {
+                        if (root.connected) {
+                          root.runHelper(["disconnect"])
+                        } else {
+                          root.runHelper(["connect"])
                         }
-                        return root.connected ? "ON" : "OFF"
-                      }
-                      textFormat: Text.PlainText
-                      font.family: root.fontFamily
-                      font.pixelSize: Style.font.caption
-                      font.bold: true
-                      color: {
-                        if (heroPowerArea.containsMouse) {
-                          return root.connected ? root.urgent : root.successColor
-                        }
-                        return root.connected ? root.successColor : root.urgent
-                      }
-                    }
-                  }
-
-                  MouseArea {
-                    id: heroPowerArea
-                    anchors.fill: parent
-                    hoverEnabled: true
-                    cursorShape: Qt.PointingHandCursor
-                    onClicked: {
-                      if (root.connected) {
-                        root.runHelper(["disconnect"])
-                      } else {
-                        root.runHelper(["connect"])
                       }
                     }
                   }
