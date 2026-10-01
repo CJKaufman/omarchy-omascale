@@ -227,6 +227,22 @@ def sanitize_exit_node(node_val):
     return None
 
 
+def node_display_name(node, default=""):
+    """Prefer the tailnet machine name (first DNSName label) over the OS hostname."""
+    label = node.get("DNSName", "").split(".")[0]
+    return label or node.get("HostName", default)
+
+
+def node_os_hostname(node):
+    """OS hostname, only when it isn't just the unsanitized form of the machine name."""
+    host = node.get("HostName", "")
+    label = node.get("DNSName", "").split(".")[0]
+    sanitized = re.sub(r"[^a-z0-9]+", "-", host.lower().replace("'", "")).strip("-")
+    if not label or not host or sanitized == label.lower():
+        return ""
+    return host
+
+
 def get_tailscale_status():
     ts_bin = get_trusted_tool("tailscale", TAILSCALE_BIN)
     if not ts_bin:
@@ -313,12 +329,13 @@ def get_tailscale_status():
         is_active_exit = bool(v.get("ExitNode", False))
 
         if is_active_exit and not active_exit_name:
-            active_exit_name = v.get("HostName", "")
+            active_exit_name = node_display_name(v)
             active_exit_ip = p_ipv4
 
         peer_entry = {
             "id": v.get("ID", ""),
-            "hostname": v.get("HostName", "Unknown"),
+            "hostname": node_display_name(v, "Unknown"),
+            "os_hostname": node_os_hostname(v),
             "dns_name": v.get("DNSName", "").rstrip("."),
             "ipv4": p_ipv4,
             "ipv6": p_ipv6,
@@ -339,7 +356,7 @@ def get_tailscale_status():
             meta = exit_list_map.get(p_ipv4, {})
             exit_nodes.append({
                 "ip": p_ipv4,
-                "hostname": v.get("HostName", meta.get("hostname", "")),
+                "hostname": node_display_name(v, meta.get("hostname", "")),
                 "dns_name": v.get("DNSName", "").rstrip("."),
                 "country": meta.get("country", ""),
                 "city": meta.get("city", ""),
@@ -347,7 +364,7 @@ def get_tailscale_status():
                 "online": bool(v.get("Online", False))
             })
 
-    # Sort peers: Online & Active first, then Online, then alphabetical by HostName
+    # Sort peers: Online & Active first, then Online, then alphabetical by name
     peers.sort(key=lambda p: (not p["active"], not p["online"], p["hostname"].lower()))
 
     # Read lan access preference
@@ -364,7 +381,7 @@ def get_tailscale_status():
         "connected": is_connected,
         "backend_state": backend_state,
         "self": {
-            "hostname": self_node.get("HostName", "This Device"),
+            "hostname": node_display_name(self_node, "This Device"),
             "dns_name": self_node.get("DNSName", "").rstrip("."),
             "ipv4": self_ipv4,
             "ipv6": self_ipv6,

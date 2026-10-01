@@ -212,8 +212,9 @@ Panel {
       if (query !== "") {
         var h = String(p.hostname || "").toLowerCase()
         var d = String(p.dns_name || "").toLowerCase()
+        var o = String(p.os_hostname || "").toLowerCase()
         var ip = String(p.ipv4 || "")
-        if (h.indexOf(query) === -1 && d.indexOf(query) === -1 && ip.indexOf(query) === -1) {
+        if (h.indexOf(query) === -1 && d.indexOf(query) === -1 && o.indexOf(query) === -1 && ip.indexOf(query) === -1) {
           return false
         }
       }
@@ -893,6 +894,7 @@ Panel {
                 required property var modelData
                 property string peerIp: String(modelData.ipv4 || "")
                 property string peerHost: String(modelData.hostname || "Unknown")
+                property string peerOsHost: String(modelData.os_hostname || "")
                 property var pingInfo: root.pingCache[peerIp] || null
                 property bool isBeingPinged: root.activePingIp === peerIp
 
@@ -1020,7 +1022,7 @@ Panel {
 
                     Text {
                       id: hostText
-                      text: peerCard.peerHost
+                      text: peerCard.peerOsHost ? peerCard.peerHost + " (" + peerCard.peerOsHost + ")" : peerCard.peerHost
                       textFormat: Text.PlainText
                       font.family: root.fontFamily
                       font.pixelSize: Style.font.caption
