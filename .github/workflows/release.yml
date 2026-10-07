@@ -1,0 +1,78 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Release and request verification
+    runs-on: ubuntu-latest
+    env:
+      HAS_MARKETPLACE_TOKEN: ${{ secrets.MARKETPLACE_TOKEN != '' }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Check the tag matches manifest.json
+        run: |
+          tag="${GITHUB_REF_NAME#v}"
+          version=$(jq -r .version manifest.json)
+          if [ "$tag" != "$version" ]; then
+            echo "manifest.json says $version but the tag is $tag"
+            exit 1
+          fi
+
+      - name: Check the plugin before releasing
+        run: |
+          python3 -m py_compile bin/omascale
+          status=0
+          for entry in $(jq -r '.entryPoints[]' manifest.json); do
+            if [ ! -f "$entry" ]; then
+              echo "entry point $entry does not exist"
+              status=1
+            fi
+          done
+          exit $status
+
+      - name: Create the GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1 || gh release create "$GITHUB_REF_NAME" --title "$GITHUB_REF_NAME" --generate-notes --verify-tag
+
+      - name: Open the marketplace verification issue
+        if: env.HAS_MARKETPLACE_TOKEN == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.MARKETPLACE_TOKEN }}
+        run: |
+          if ! curl -sfL --max-time 30 https://plugins.omarchy.org/catalog.json -o /tmp/catalog.json; then
+            echo "Could not read the marketplace catalog, so the listing state is unknown."
+            echo "Open the verification issue by hand if the plugin is already listed."
+            exit 0
+          fi
+          listed=$(jq -r --arg id "cjkaufman.omascale" '[.plugins[] | select(type == "object") | .id] | index($id) != null' /tmp/catalog.json)
+          if [ "$listed" != "true" ]; then
+            echo "cjkaufman.omascale is not listed on the marketplace."
+            echo "Verification is only for a plugin that is already listed."
+            exit 0
+          fi
+          sha=$(git rev-parse "${GITHUB_REF_NAME}^{commit}")
+          body=$(printf '%s\n' \
+            "### Verification action" "" "Verify and publish a newer upstream commit" "" \
+            "### Plugin ID" "" "cjkaufman.omascale" "" \
+            "### Repository URL" "" "https://github.com/${GITHUB_REPOSITORY}" "" \
+            "### Target commit" "" "$sha" "" \
+            "### Verification acknowledgment" "" \
+            "- [x] I understand that only the exact target commit can become a verified marketplace snapshot and that verification is not a security audit." "" \
+            "### Standard installation acknowledgment" "" \
+            "- [ ] I confirm that this listed root plugin supports the standard Omarchy installation path and does not require manual setup.")
+          gh issue create -R omacom/omarchy-plugin-marketplace --title "[Verify]: OmaScale ${GITHUB_REF_NAME}" --body "$body"
+
+      - name: Say what to do without a token
+        if: env.HAS_MARKETPLACE_TOKEN != 'true'
+        run: |
+          echo "No MARKETPLACE_TOKEN secret, so no verification issue was opened."
+          echo "Add a classic personal access token with the public_repo scope as MARKETPLACE_TOKEN,"
+          echo "or open the verification issue by hand from the Plugin verification form."

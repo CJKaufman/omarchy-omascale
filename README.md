@@ -96,6 +96,25 @@ Configurable via Omarchy shell settings or `~/.config/omarchy/shell.json`:
 
 ---
 
+## Releasing
+
+1. Bump `version` in `manifest.json`, commit, and push to `main`.
+2. Tag the final `main` HEAD and push the tag:
+
+```bash
+git tag -a v1.1.0 -m "v1.1.0"
+git push origin v1.1.0
+```
+
+| Workflow | Trigger | What it does |
+| :--- | :--- | :--- |
+| `release.yml` | `v*` tag | Checks the tag against `manifest.json`, creates the GitHub release, and opens a marketplace verification issue for the tagged commit. |
+| `revalidate.yml` | Push to `main` | Points an open, unapproved marketplace request at the new head, since the marketplace only verifies the current HEAD of `main`. |
+
+Both need a `MARKETPLACE_TOKEN` repository secret: a classic personal access token with the `public_repo` scope. Without it, the release is still created and the verification issue can be opened by hand from the [verification form](https://github.com/omacom/omarchy-plugin-marketplace/issues/new?template=verify-plugin.yml).
+
+---
+
 ## License
 
 MIT License. Copyright (c) 2026 Carl Kaufman.
