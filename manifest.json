@@ -5,7 +5,7 @@
   "version": "1.0.0",
   "author": "Carl Kaufman",
   "license": "MIT",
-  "description": "Tailscale management and network telemetry bar widget for Omarchy. Switch exit nodes, copy peer IPv4 addresses, ping latency, and monitor tailnet state.",
+  "description": "Tailscale management and network telemetry bar widget for Omarchy. Switch exit nodes, copy peer IPv4 addresses, ping latency, send files with Taildrop, and monitor tailnet state.",
   "kinds": [
     "bar-widget"
   ],

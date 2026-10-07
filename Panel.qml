@@ -28,6 +28,7 @@ Panel {
   readonly property string glyphLan: "󰲝"
   readonly property string glyphPing: "󰀦"
   readonly property string glyphCopy: "󰆏"
+  readonly property string glyphSend: "󰒊"
   readonly property string glyphCheck: "󰄬"
   readonly property string glyphRefresh: "󰑐"
   readonly property string glyphSearch: "󰍉"
@@ -186,6 +187,12 @@ Panel {
     root.lastCopiedIp = ip
     copyResetTimer.restart()
     runHelper(["copy", ip, label || "Device"])
+  }
+
+  function sendFiles(target) {
+    if (!target) return
+    root.close()
+    Quickshell.execDetached([root.helper, "send", target])
   }
 
   function osGlyph(osName) {
@@ -895,6 +902,8 @@ Panel {
                 property string peerIp: String(modelData.ipv4 || "")
                 property string peerHost: String(modelData.hostname || "Unknown")
                 property string peerOsHost: String(modelData.os_hostname || "")
+                property string peerTarget: String(modelData.dns_name || modelData.ipv4 || "")
+                property bool canSend: modelData.taildrop_target === true
                 property var pingInfo: root.pingCache[peerIp] || null
                 property bool isBeingPinged: root.activePingIp === peerIp
 
@@ -1001,6 +1010,48 @@ Panel {
                   // Spacer placeholder for offline devices to keep Copy button strictly aligned
                   Item {
                     visible: !peerCard.modelData.online
+                    implicitWidth: Style.space(60)
+                    implicitHeight: Style.space(26)
+                  }
+
+                  Rectangle {
+                    visible: peerCard.canSend
+                    implicitWidth: Style.space(60)
+                    implicitHeight: Style.space(26)
+                    radius: 4
+                    color: sendArea.containsMouse ? root.subtleBg : "transparent"
+                    border.color: sendArea.containsMouse ? root.accent : root.borderCol
+                    border.width: 1
+
+                    RowLayout {
+                      anchors.centerIn: parent
+                      spacing: Style.space(4)
+                      Text {
+                        text: root.glyphSend
+                        font.family: root.fontFamily
+                        font.pixelSize: Style.font.caption * 0.9
+                        color: sendArea.containsMouse ? root.accent : root.foreground
+                      }
+                      Text {
+                        text: "Send"
+                        textFormat: Text.PlainText
+                        font.family: root.fontFamily
+                        font.pixelSize: Style.font.caption * 0.85
+                        color: sendArea.containsMouse ? root.accent : root.foreground
+                      }
+                    }
+
+                    MouseArea {
+                      id: sendArea
+                      anchors.fill: parent
+                      hoverEnabled: true
+                      cursorShape: Qt.PointingHandCursor
+                      onClicked: root.sendFiles(peerCard.peerTarget)
+                    }
+                  }
+
+                  Item {
+                    visible: !peerCard.canSend
                     implicitWidth: Style.space(60)
                     implicitHeight: Style.space(26)
                   }
