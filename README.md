@@ -1,6 +1,6 @@
 # OmaScale for Omarchy
 
-A native Omarchy status bar widget and interactive network control panel for Tailscale. Replaces basic on/off toggles with full routing management, exit node selection, peer discovery, latency pinging, and telemetry.
+A native Omarchy status bar widget and interactive network control panel for Tailscale. Replaces basic on/off toggles with full routing management, exit node selection, peer discovery, latency pinging, Taildrop file sending, and telemetry.
 
 <p align="center">
   <img src="preview.png" alt="OmaScale Control Panel Preview" width="520"/>
@@ -13,6 +13,7 @@ A native Omarchy status bar widget and interactive network control panel for Tai
 - 🌐 **Exit Node Management:** View active exit node routing, switch instantly between any exit nodes advertised on your tailnet, or revert to a Direct connection with a single click.
 - 🏠 **Local LAN Access Toggle:** Easily toggle `--exit-node-allow-lan-access` right from the control panel while routing through an exit node.
 - 📋 **1-Click IPv4 Copying:** Instant clipboard copying for your local Tailscale IP or any peer device across the mesh network using native clipboard integration and `wl-copy`.
+- 📤 **Taildrop File Sending:** Send files to any of your devices that can receive Taildrop. The Send button on a peer card opens the desktop file chooser through `omarchy tailscale send`. Incoming files land in `~/Downloads` through Omarchy's `omarchy-tailscale-receive` service.
 - ⚡ **Live Latency & Route Probing:** Ping any peer on demand (`tailscale ping --c 1 <ip>`) to view actual roundtrip latency (ms) and determine whether traffic is flowing over a direct connection or relayed via a DERP node.
 - 🔍 **Search & Instant Filters:** Quick-search peers by hostname or IP address, or filter devices by All, Online, Exit Nodes, and Offline.
 - 🛡️ **Zero-Privilege Security Model:** Runs entirely unprivileged without requiring elevated administrator permissions or root daemons. Does not disrupt or drop internet connections during polling or background checks.
@@ -25,6 +26,7 @@ A native Omarchy status bar widget and interactive network control panel for Tai
 - **Tailscale CLI** (`/usr/bin/tailscale`)
 - **Python 3.10+** (standard library only; no pip dependencies)
 - **`wl-copy`** (`/usr/bin/wl-copy`, default in Omarchy)
+- **`omarchy-tailscale-send`** (`/usr/bin/omarchy-tailscale-send`, default in Omarchy 4) and Taildrop enabled for the tailnet, to send files
 
 ---
 
@@ -65,7 +67,7 @@ omarchy-restart-shell
 OmaScale is built from the ground up to comply with the Omarchy Plugin Marketplace security guidelines:
 
 1. **Trusted Absolute Binaries:**
-   - System utilities (`/usr/bin/tailscale`, `/usr/bin/wl-copy`, `/usr/bin/notify-send`) are pinned to verified absolute locations.
+   - System utilities (`/usr/bin/tailscale`, `/usr/bin/wl-copy`, `/usr/bin/notify-send`, `/usr/bin/omarchy-tailscale-send`) are pinned to verified absolute locations.
    - Every binary candidate is verified: regular file, non-world-writable (`mode & 0o002 == 0`), owned by root or the current user, and executable.
    - Zero ambient `$PATH` lookups.
 
@@ -81,7 +83,7 @@ OmaScale is built from the ground up to comply with the Omarchy Plugin Marketpla
    - Explicit `os.fsync()` prior to atomic `os.replace()`.
 
 4. **Input Sanitization:**
-   - All CLI parameters (exit node hostnames, peer IPs, boolean flags) are validated against strict regex allowlists before passing to the Tailscale CLI.
+   - All CLI parameters (exit node hostnames, Taildrop targets, peer IPs, boolean flags) are validated against strict regex allowlists before passing to the Tailscale CLI.
 
 ---
 

@@ -24,6 +24,7 @@ MAX_SUBPROCESS_BYTES = 262144
 TAILSCALE_BIN = "/usr/bin/tailscale"
 WL_COPY_BIN = "/usr/bin/wl-copy"
 NOTIFY_SEND_BIN = "/usr/bin/notify-send"
+TAILSCALE_SEND_BIN = "/usr/bin/omarchy-tailscale-send"
 
 STATE_DIR = Path.home() / ".local/state/omarchy/cjkaufman.omascale"
 STATE_FILE = STATE_DIR / "state.json"
@@ -227,6 +228,13 @@ def sanitize_exit_node(node_val):
     return None
 
 
+def sanitize_send_target(target_val):
+    clean = str(target_val or "").strip()
+    if HOSTNAME_REGEX.match(clean) or sanitize_ip(clean):
+        return clean
+    return None
+
+
 def node_display_name(node, default=""):
     """Prefer the tailnet machine name (first DNSName label) over the OS hostname."""
     label = node.get("DNSName", "").split(".")[0]
@@ -344,6 +352,7 @@ def get_tailscale_status():
             "active": bool(v.get("Active", False)),
             "is_exit_node": is_exit_opt,
             "is_active_exit": is_active_exit,
+            "taildrop_target": v.get("TaildropTarget") == 1,
             "rx_bytes": v.get("RxBytes", 0),
             "tx_bytes": v.get("TxBytes", 0),
             "last_seen": v.get("LastSeen", ""),
@@ -504,6 +513,30 @@ def handle_copy(ip, label=""):
     return {"success": True, "ip": clean_ip}
 
 
+def handle_send(target):
+    send_bin = get_trusted_tool("omarchy-tailscale-send", TAILSCALE_SEND_BIN)
+    if not send_bin:
+        return {"success": False, "error": "omarchy-tailscale-send binary untrusted"}
+
+    clean_target = sanitize_send_target(target)
+    if not clean_target:
+        return {"success": False, "error": "Invalid machine name or IP"}
+
+    try:
+        subprocess.Popen(
+            [send_bin, clean_target],
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            close_fds=True,
+            start_new_session=True
+        )
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+    return {"success": True, "target": clean_target}
+
+
 def handle_connect(connect=True):
     ts_bin = get_trusted_tool("tailscale", TAILSCALE_BIN)
     if not ts_bin:
@@ -561,6 +594,10 @@ def process_action(action, args):
             return {"success": False, "error": "Missing IP parameter"}
         label = args[1] if len(args) > 1 else ""
         return handle_copy(args[0], label)
+    elif action == "send":
+        if len(args) < 1:
+            return {"success": False, "error": "Missing machine parameter"}
+        return handle_send(args[0])
     elif action == "toggle":
         return handle_toggle()
     else:
